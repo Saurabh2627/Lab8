@@ -22,7 +22,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsRole
+          role-to-assume: arn:aws:iam::515880899753:role/GitHubActionsRole
           aws-region: us-east-1
 
       - run: npm install
