@@ -1,9 +1,9 @@
 name: Pulumi Deployment
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 jobs:
   deploy:
@@ -30,7 +30,7 @@ jobs:
       # 4. Configure AWS credentials (OIDC)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/GitHubActionsRole
+          role-to-assume: arn:aws:iam:515880899753::role/GitHubActionsRole
           aws-region: us-east-1
           role-session-name: GitHubActions-PulumiDeploy
 
