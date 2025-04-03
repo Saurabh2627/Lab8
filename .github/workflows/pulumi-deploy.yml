@@ -1,9 +1,9 @@
 name: Pulumi Deploy
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -15,14 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Fixed Pulumi setup step
+      # CORRECTED: Use the proper Pulumi action
       - uses: pulumi/actions@v3
         with:
-          pulumi-version: "latest"
+          pulumi-version: "latest"  # or specific version like "3.85.0"
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::515880899753:role/GitHubActionsRole
+          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsRole
           aws-region: us-east-1
 
       - run: npm install
