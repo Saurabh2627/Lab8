@@ -27,7 +27,7 @@ jobs:
       # Configure AWS credentials (OIDC)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::515880899753:role/GitHubActionsRole
+          role-to-assume: arn:aws:iam::515880899753:role/GithubActionRole
           aws-region: us-east-1
 
       # Fixed Pulumi Action with REQUIRED command parameter
