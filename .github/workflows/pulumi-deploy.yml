@@ -10,35 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # Required for OIDC auth with AWS
+      id-token: write
 
     steps:
-      # Checkout code
       - uses: actions/checkout@v4
 
-      # Install Pulumi
-      - uses: pulumi/setup-pulumi@v3
+      # Fixed Pulumi setup step
+      - uses: pulumi/actions@v3
         with:
-          version: latest  # or specify a version like "3.85.0"
+          pulumi-version: "latest"
 
-      # Configure AWS credentials (OIDC recommended)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::515880899753:role/GitHubActionsRole
           aws-region: us-east-1
 
-      # Install dependencies (Node.js example)
       - run: npm install
 
-      # Login to Pulumi Cloud (if using Pulumi SaaS)
       - run: pulumi login
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      # Preview changes on PR
       - if: github.event_name == 'pull_request'
         run: pulumi preview --stack dev
 
-      # Deploy on push to main
       - if: github.event_name == 'push'
         run: pulumi up --yes --stack dev
