@@ -1,4 +1,4 @@
-name: Pulumi Deploy
+name: Pulumi Deployment
 on:
   push:
     branches: [ "main" ]
@@ -10,29 +10,47 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      id-token: write  # Required for AWS OIDC
+      pull-requests: write  # For PR comments
 
     steps:
+      # 1. Checkout code
       - uses: actions/checkout@v4
 
-      # CORRECTED: Use the proper Pulumi action
-      - uses: pulumi/actions@v3
+      # 2. Setup Node.js (if using TypeScript/JavaScript)
+      - uses: actions/setup-node@v3
         with:
-          pulumi-version: "latest"  # or specific version like "3.85.0"
+          node-version: '18'
+          cache: 'npm'
 
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Configure AWS credentials (OIDC)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::515880899753:role/GitHubActionsRole
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/GitHubActionsRole
           aws-region: us-east-1
+          role-session-name: GitHubActions-PulumiDeploy
 
-      - run: npm install
-
-      - run: pulumi login
+      # 5. Pulumi deployment
+      - uses: pulumi/actions@v3
+        name: Pulumi
+        with:
+          pulumi-version: "3.85.0"  # Pinned version
+          command: up
+          stack-name: dev
+          work-dir: ./
+          options: --yes --skip-preview
+          comment-on-pr: true  # Show plan in PRs
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_REGION: us-east-1
 
-      - if: github.event_name == 'pull_request'
-        run: pulumi preview --stack dev
-
-      - if: github.event_name == 'push'
-        run: pulumi up --yes --stack dev
+      # 6. Output results (optional)
+      - name: Show CloudFront URL
+        if: success()
+        run: |
+          echo "Deployment successful!"
+          echo "CloudFront URL: $(pulumi stack output cloudfrontUrl --stack dev)"
