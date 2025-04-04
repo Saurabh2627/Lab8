@@ -1,9 +1,10 @@
 name: Pulumi Deployment
 on:
+  workflow_dispatch:  # Allows manual run from GitHub UI
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [closed]
 
 jobs:
   deploy:
@@ -56,11 +57,10 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
-    destroy:
-      name: Destroy Resources
-      if: true  # Force-run always (for testing only)
-      runs-on: ubuntu-latest
-  # ... rest of config unchanged
+  destroy:
+    name: Destroy Resources
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
