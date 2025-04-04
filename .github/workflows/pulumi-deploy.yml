@@ -13,52 +13,70 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Use Node.js 16
       - uses: actions/setup-node@v3
         with:
           node-version: '16'
           cache: 'npm'
 
-      # Clean install with exact versions
       - run: |
           rm -rf node_modules package-lock.json
           npm install --legacy-peer-deps
           npm install @pulumi/pulumi@3.55.0
           npm install @pulumi/aws@5.42.0
 
-      # Install Pulumi CLI with retry logic
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v2
         with:
           pulumi-version: '3.55.0'
           install-only: true
 
-      # AWS configuration
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::515880899753:role/GithubActionRole
           aws-region: us-east-1
 
-      # Run Pulumi with fixed plugin installation
-      - name: Run Pulumi
+      - name: Run Pulumi with Robust Plugin Installation
         run: |
           export PULUMI_SKIP_UPDATE_CHECK=true
           
-          # First try official download with retry
-          for i in {1..3}; do
-            pulumi plugin install language nodejs v3.55.0 && break || sleep 5
-          done
+          # Create plugins directory if it doesn't exist
+          mkdir -p ~/.pulumi/plugins
           
-          # Fallback to direct download if official fails
-          if [ ! -f ~/.pulumi/plugins/pulumi-language-nodejs-v3.55.0 ]; then
-            echo "Falling back to direct download..."
-            mkdir -p ~/.pulumi/plugins
-            curl -L https://github.com/pulumi/pulumi-nodejs/releases/download/v3.55.0/pulumi-language-nodejs-v3.55.0-linux-amd64.tar.gz | tar xz -C ~/.pulumi/plugins
-            chmod +x ~/.pulumi/plugins/pulumi-language-nodejs-v3.55.0
+          # Try multiple plugin download sources with proper filenames
+          PLUGIN_DOWNLOADED=false
+          
+          # Source 1: Pulumi official CDN (correct filename)
+          echo "Attempting download from Pulumi CDN..."
+          if curl -fL https://get.pulumi.com/releases/plugins/pulumi-language-nodejs-v3.55.0-linux-amd64.tar.gz | tar xz -C ~/.pulumi/plugins; then
+            PLUGIN_DOWNLOADED=true
+          else
+            # Source 2: GitHub Releases (correct filename pattern)
+            echo "Attempting download from GitHub Releases..."
+            if curl -fL https://github.com/pulumi/pulumi-nodejs/releases/download/v3.55.0/pulumi-language-nodejs-v3.55.0-linux-amd64.tar.gz | tar xz -C ~/.pulumi/plugins; then
+              PLUGIN_DOWNLOADED=true
+            else
+              # Source 3: Alternative GitHub URL pattern
+              echo "Attempting alternative GitHub download..."
+              if curl -fL https://github.com/pulumi/pulumi-nodejs/releases/download/v3.55.0/pulumi-language-nodejs-linux-amd64.tar.gz | tar xz -C ~/.pulumi/plugins; then
+                PLUGIN_DOWNLOADED=true
+              fi
+            fi
           fi
           
+          # Verify plugin was downloaded
+          if [ "$PLUGIN_DOWNLOADED" = false ]; then
+            echo "❌ All plugin download attempts failed"
+            exit 1
+          fi
+          
+          # Set executable permissions
+          chmod +x ~/.pulumi/plugins/pulumi-language-nodejs*
+          
+          # Install AWS provider plugin
           pulumi plugin install resource aws v5.42.0
-          pulumi preview --stack dev --non-interactive
+          
+          # Run Pulumi with verbose logging
+          pulumi preview --stack dev --non-interactive --logtostderr -v=9
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
