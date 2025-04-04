@@ -1,15 +1,13 @@
 name: Pulumi Deployment
 on:
-  workflow_dispatch:    # Manual trigger
   push:
-    branches: [master]  # Changed from 'main' to match your original
+    branches: [master]
   pull_request:
-    types: [closed]     # Simplified to only trigger on PR closure
+    types: [opened, synchronize, closed]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'  # Only run on push/workflow_dispatch
     permissions:
       contents: read
       id-token: write
@@ -50,6 +48,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Run Pulumi Up
+        if: github.event_name == 'push'
         run: |
           export PULUMI_SKIP_UPDATE_CHECK=true
           pulumi up --stack dev --yes --non-interactive
@@ -59,6 +58,7 @@ jobs:
 
   destroy:
     name: Destroy Resources
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
