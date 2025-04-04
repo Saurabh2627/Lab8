@@ -2,7 +2,7 @@ name: Pulumi Deployment
 on:
   workflow_dispatch:  # Allows manual run from GitHub UI
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
     types: [closed]
 
