@@ -10,40 +10,34 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # Required for OIDC
-      pull-requests: write  # Only needed if PR comments are part of your workflow
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Recommended for Pulumi to get full git history
+          fetch-depth: 0  # Important for Pulumi
 
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'npm'  # Add caching for faster builds
+          cache: 'npm'
 
-      - run: npm ci  # Use ci instead of install for reproducible builds
-      
-      # Configure AWS credentials
+      - run: npm ci
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::515880899753:role/GithubActionRole
           aws-region: us-east-1
-          audience: sts.amazonaws.com  # Must match trust policy
-          role-session-name: GitHubCI-${{ github.run_id }}
-          role-duration-seconds: 3600
+          audience: sts.amazonaws.com
 
-      # Pulumi deployment
       - uses: pulumi/actions@v3
         with:
           pulumi-version: "3.85.0"
-          command: "up"
+          command: "preview"  # Use 'up' for actual deployment
           stack-name: "dev"
           work-dir: "./"
-          comment-on-pr: true  # Only if you want PR comments
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}  # Recommended if using secrets
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
           AWS_REGION: us-east-1
