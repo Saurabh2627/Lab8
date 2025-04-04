@@ -10,21 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
-      pull-requests: write
+      id-token: write  # Required for OIDC
+      pull-requests: write  # Only needed if PR comments are part of your workflow
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Recommended for Pulumi to get full git history
 
-      # Setup Node.js (only needed if using TypeScript/JavaScript)
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'  # Add caching for faster builds
 
-      # Install dependencies
-      - run: npm install
-
-      # Configure AWS credentials (OIDC)
+      - run: npm ci  # Use ci instead of install for reproducible builds
+      
+      # Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -32,17 +33,18 @@ jobs:
           aws-region: us-east-1
           audience: sts.amazonaws.com
           role-session-name: GitHubCI-${{ github.run_id }}
-          role-duration-seconds: 3600  # 1 hour session
-          mask-aws-account-id: false  # Helps with debugging
+          role-duration-seconds: 3600
+          mask-aws-account-id: false
 
-      # Fixed Pulumi Action with REQUIRED command parameter
+      # Pulumi deployment
       - uses: pulumi/actions@v3
         with:
-          pulumi-version: "3.85.0"  # Pinned version recommended
-          command: "up"             # <<< REQUIRED parameter (can be: preview, up, destroy, refresh)
-          stack-name: "dev"         # <<< Also required
+          pulumi-version: "3.85.0"
+          command: "up"
+          stack-name: "dev"
           work-dir: "./"
-          options: "--yes --skip-preview"
+          comment-on-pr: true  # Only if you want PR comments
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}  # Recommended if using secrets
           AWS_REGION: us-east-1
