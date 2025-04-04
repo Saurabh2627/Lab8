@@ -1,9 +1,5 @@
 name: Pulumi Deployment
-on:
-  push:
-    branches: [master]
-  pull_request:
-    types: [opened, synchronize, closed]
+on: [push, pull_request]
 
 jobs:
   deploy:
@@ -17,84 +13,37 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Use current Node.js LTS version
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
 
+      # Clean install with latest stable versions
       - run: |
           rm -rf node_modules package-lock.json
           npm install --legacy-peer-deps
           npm install @pulumi/pulumi@latest
           npm install @pulumi/aws@latest
 
+      # Install latest Pulumi CLI
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v2
         with:
           pulumi-version: 'latest'
           install-only: true
 
+      # AWS configuration
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::515880899753:role/GithubActionRole
           aws-region: us-east-1
 
+      # Run Pulumi with modern configuration
       - name: Run Pulumi Preview
         run: |
           export PULUMI_SKIP_UPDATE_CHECK=true
           pulumi preview --stack dev --non-interactive
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Run Pulumi Up
-        if: github.event_name == 'push'
-        run: |
-          export PULUMI_SKIP_UPDATE_CHECK=true
-          pulumi up --stack dev --yes --non-interactive
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-  destroy:
-    name: Destroy Resources
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: |
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-          npm install @pulumi/pulumi@latest
-          npm install @pulumi/aws@latest
-
-      - name: Install Pulumi CLI
-        uses: pulumi/action-install-pulumi-cli@v2
-        with:
-          pulumi-version: 'latest'
-          install-only: true
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::515880899753:role/GithubActionRole
-          aws-region: us-east-1
-
-      - name: Destroy Stack
-        run: |
-          export PULUMI_SKIP_UPDATE_CHECK=true
-          pulumi destroy --stack dev --yes --non-interactive
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
