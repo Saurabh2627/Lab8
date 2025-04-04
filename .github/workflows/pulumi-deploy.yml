@@ -13,23 +13,37 @@ jobs:
       id-token: write
 
     steps:
+      # Clean environment setup
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          clean: true  # Nuclear option: completely clean repo
 
+      # Node.js setup with cache clearing
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          always-auth: true
 
-      - run: npm ci
-      
-      # Explicitly install Pulumi CLI
+      # Nuclear package installation
+      - name: Clean Install Dependencies
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm cache clean --force
+          npm install --force --legacy-peer-deps
+          npm rebuild
+
+      # Pulumi CLI installation with forced version
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v2
         with:
           pulumi-version: '3.85.0'
+          install-only: true
 
+      # AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -37,11 +51,31 @@ jobs:
           aws-region: us-east-1
           audience: sts.amazonaws.com
 
+      # Nuclear Pulumi execution
       - name: Run Pulumi Preview
         run: |
           export PULUMI_SKIP_UPDATE_CHECK=true
-          pulumi preview --stack dev --non-interactive
+          export PULUMI_HOME=/home/runner/.pulumi
+          export PATH=$PATH:$PULUMI_HOME/bin
+          
+          # Clean Pulumi cache
+          rm -rf $PULUMI_HOME/{plugins,workspaces}
+          
+          # Run with maximum verbosity
+          pulumi preview \
+            --stack dev \
+            --non-interactive \
+            --logtostderr \
+            -v=9 2>&1 | tee pulumi.log
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          PULUMI_HOME: /home/runner/.pulumi
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      # Artifact for debugging
+      - name: Upload Pulumi Logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pulumi-debug-logs
+          path: pulumi.log
